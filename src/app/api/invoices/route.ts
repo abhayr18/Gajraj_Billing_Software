@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       sql += ' AND (invoice_number LIKE ? OR customer_name LIKE ?)';
       params.push(`%${search}%`, `%${search}%`);
     }
-    if (status) {
+    if (status && status !== 'all') {
       sql += ' AND payment_status = ?';
       params.push(status);
     }
@@ -60,15 +60,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'At least one item is required' }, { status: 400 });
     }
 
-    /* Generate invoice number: PREFIX-COUNTER */
-    const prefixRow = db.prepare("SELECT value FROM settings WHERE key = 'invoice_prefix'").get() as { value: string } | undefined;
-    const counterRow = db.prepare("SELECT value FROM settings WHERE key = 'invoice_counter'").get() as { value: string } | undefined;
-    const prefix = prefixRow?.value || 'GKS';
-    const counter = parseInt(counterRow?.value || '1', 10);
-    const invoice_number = `${prefix}-${String(counter).padStart(5, '0')}`;
-
     /* Wrap in transaction */
     const createInvoice = db.transaction(() => {
+      /* Generate invoice number cleanly isolated inside transaction lock */
+      const prefixRow = db.prepare("SELECT value FROM settings WHERE key = 'invoice_prefix'").get() as { value: string } | undefined;
+      const counterRow = db.prepare("SELECT value FROM settings WHERE key = 'invoice_counter'").get() as { value: string } | undefined;
+      const prefix = prefixRow?.value || 'INV';
+      const counter = parseInt(counterRow?.value || '1', 10);
+      const invoice_number = `${prefix}-${String(counter).padStart(5, '0')}`;
+
       /* Insert invoice */
       const invResult = db.prepare(`
         INSERT INTO invoices (invoice_number, customer_id, customer_name, customer_phone,

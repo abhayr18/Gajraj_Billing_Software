@@ -54,6 +54,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  db.prepare('DELETE FROM customers WHERE id = ?').run(id);
-  return NextResponse.json({ success: true });
+  try {
+    const deleteTx = db.transaction(() => {
+      db.prepare('UPDATE invoices SET customer_id = NULL WHERE customer_id = ?').run(id);
+      db.prepare('DELETE FROM customers WHERE id = ?').run(id);
+    });
+    deleteTx();
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete customer', error);
+    return NextResponse.json({ error: 'Failed to delete customer' }, { status: 500 });
+  }
 }

@@ -152,13 +152,19 @@ export default function BillingPage() {
   /* Save invoice */
   const handleSave = async (printAndClear = false) => {
     if (items.length === 0) { toast.error('Add at least one item'); return; }
-    if (items.some(i => !i.product_name || i.price <= 0)) {
-      toast.error('Fill in all item details');
+    if (items.some(i => !i.product_name || i.price < 0 || i.quantity <= 0)) {
+      toast.error('Fill in all item details correctly (quantity > 0)');
       return;
     }
-    if (paymentStatus === 'partial' && (!amountPaid || amountPaid <= 0)) {
-      toast.error('Enter a valid amount paid for partial payment');
-      return;
+    if (paymentStatus === 'partial') {
+      if (!amountPaid || amountPaid <= 0) {
+        toast.error('Enter a valid amount paid for partial payment');
+        return;
+      }
+      if (amountPaid >= totalAmount) {
+        toast.error('Partial payment amount must be less than total amount');
+        return;
+      }
     }
 
     setSaving(true);
@@ -323,9 +329,9 @@ export default function BillingPage() {
                         <TableCell className="align-top pt-4">
                           <div className="flex flex-col gap-1 items-start">
                             <Input
-                              type="number" min="0.1" step="1"
-                              value={item.quantity}
-                              onChange={(e) => updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)}
+                              type="number" min="0" step="any"
+                              value={item.quantity === 0 ? '' : item.quantity}
+                              onChange={(e) => updateItem(idx, 'quantity', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                               className={`h-8 w-20 ${item.product_id && item.quantity > item.available_stock ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                             />
                             {item.product_id && item.quantity > item.available_stock ? (
@@ -341,18 +347,18 @@ export default function BillingPage() {
                             <span className="font-medium text-slate-700">{formatCurrency(item.price)}</span>
                           ) : (
                             <Input
-                              type="number" min="0"
-                              value={item.price}
-                              onChange={(e) => updateItem(idx, 'price', parseFloat(e.target.value) || 0)}
+                              type="number" min="0" step="any"
+                              value={item.price === 0 ? '' : item.price}
+                              onChange={(e) => updateItem(idx, 'price', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                               className="h-8 w-24"
                             />
                           )}
                         </TableCell>
                         <TableCell>
                           <Input
-                            type="number" min="0"
-                            value={item.discount}
-                            onChange={(e) => updateItem(idx, 'discount', parseFloat(e.target.value) || 0)}
+                            type="number" min="0" step="any"
+                            value={item.discount === 0 ? '' : item.discount}
+                            onChange={(e) => updateItem(idx, 'discount', e.target.value === '' ? 0 : parseFloat(e.target.value))}
                             className="h-8 w-20"
                           />
                         </TableCell>
@@ -457,8 +463,8 @@ export default function BillingPage() {
               )}
               <div>
                 <Label>Discount (Rs.)</Label>
-                <Input type="number" min="0" value={discountAmount}
-                  onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)} />
+                <Input type="number" min="0" step="any" value={discountAmount === 0 ? '' : discountAmount}
+                  onChange={(e) => setDiscountAmount(e.target.value === '' ? 0 : parseFloat(e.target.value))} />
               </div>
               <div>
                 <Label>Notes</Label>

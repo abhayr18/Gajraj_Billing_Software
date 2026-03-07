@@ -12,10 +12,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(id);
+  const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(id) as any;
   if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const items = db.prepare('SELECT * FROM invoice_items WHERE invoice_id = ?').all(id);
+
+  const setting = db.prepare('SELECT value FROM settings WHERE key = ?').get('store_name') as any;
+  if (setting) {
+    invoice.store_name = setting.value;
+  }
+
   return NextResponse.json({ invoice, items });
 }
 

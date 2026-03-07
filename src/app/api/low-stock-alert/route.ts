@@ -54,7 +54,7 @@ export async function POST() {
     ).join('');
 
     const html = `
-      <h2>Low Stock Alert - ${s.store_name || 'Gajraj Kirana Stores'}</h2>
+      <h2>Low Stock Alert - ${s.store_name || 'Store'}</h2>
       <p>${lowStock.length} product(s) are running low on stock:</p>
       <table style="border-collapse:collapse;width:100%">
         <tr style="background:#f5f5f5">

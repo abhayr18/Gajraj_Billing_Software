@@ -58,6 +58,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  db.prepare('DELETE FROM products WHERE id = ?').run(id);
-  return NextResponse.json({ success: true });
+  try {
+    const deleteTx = db.transaction(() => {
+      db.prepare('UPDATE invoice_items SET product_id = NULL WHERE product_id = ?').run(id);
+      db.prepare('DELETE FROM products WHERE id = ?').run(id);
+    });
+    deleteTx();
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete product', error);
+    return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
+  }
 }

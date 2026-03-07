@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gajraj Kirana Stores - Billing Software",
-  description: "Desktop billing & inventory management for Gajraj Kirana Stores",
+  title: "Billing Software System",
+  description: "Desktop billing & inventory management",
 };
 
 export default function RootLayout({

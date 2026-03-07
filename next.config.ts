@@ -30,7 +30,8 @@ const nextConfig: NextConfig = {
         loaders: [loaderPath]
       }
     }
-  }
+  },
+  output: "standalone"
 } as NextConfig;
 
 export default nextConfig;

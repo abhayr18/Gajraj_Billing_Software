@@ -20,7 +20,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Pencil, Trash2, Package } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Package, Upload, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 
 interface Product {
@@ -49,11 +50,10 @@ const emptyProduct = {
   unit: 'pcs', low_stock_alert: 10, gst_rate: 0, description: '',
 };
 
-const units = ['pcs', 'kg', 'g', 'ltr', 'ml', 'box', 'pack', 'dozen', 'bag'];
-
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [units, setUnits] = useState<{ id: number, name: string }[]>([]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -74,14 +74,18 @@ export default function ProductsPage() {
     finally { setLoading(false); }
   }, [search, categoryFilter]);
 
-  /* Fetch categories */
-  const fetchCategories = async () => {
-    const res = await fetch('/api/categories');
-    setCategories(await res.json());
+  /* Fetch categories and units */
+  const fetchAttributes = async () => {
+    const [catRes, unitRes] = await Promise.all([
+      fetch('/api/categories'),
+      fetch('/api/units')
+    ]);
+    setCategories(await catRes.json());
+    setUnits(await unitRes.json());
   };
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
-  useEffect(() => { fetchCategories(); }, []);
+  useEffect(() => { fetchAttributes(); }, []);
 
   /* Open dialog for add / edit */
   const openAdd = () => {
@@ -132,6 +136,78 @@ export default function ProductsPage() {
     } catch { toast.error('Failed to delete'); }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const toastId = toast.loading('Reading Excel file...');
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(worksheet);
+
+      if (!json || json.length === 0) {
+        toast.error('Excel file is empty or invalid format.', { id: toastId });
+        return;
+      }
+
+      toast.loading('Importing products into database...', { id: toastId });
+      const res = await fetch('/api/products/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(json)
+      });
+      const result = await res.json();
+
+      if (!res.ok) throw new Error(result.error || 'Import Failed');
+
+      toast.success(`Successfully imported ${result.count} products!`, { id: toastId });
+      fetchProducts();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || 'Failed to import products from Excel', { id: toastId });
+    }
+    // Reset file input
+    e.target.value = '';
+  };
+
+  const downloadSampleExcel = () => {
+    const sampleData = [
+      {
+        name: 'Sample Product 1',
+        sku: 'SKU001',
+        category: 'Grocery',
+        hsn_code: '1234',
+        purchase_price: 100,
+        selling_price: 150,
+        quantity: 50,
+        unit: 'pcs',
+        low_stock_alert: 10,
+        gst_rate: 18,
+        description: 'Sample description'
+      },
+      {
+        name: 'Sample Product 2',
+        sku: 'SKU002',
+        category: 'Dairy',
+        hsn_code: '5678',
+        purchase_price: 45,
+        selling_price: 60,
+        quantity: 100,
+        unit: 'ltr',
+        low_stock_alert: 20,
+        gst_rate: 0,
+        description: 'Milk 1L'
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Products');
+    XLSX.writeFile(workbook, 'Sample_Products_Import.xlsx');
+  };
+
   const formatCurrency = (n: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n);
 
@@ -143,9 +219,24 @@ export default function ProductsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Products</h1>
           <p className="text-muted-foreground">Manage your inventory and products</p>
         </div>
-        <Button onClick={openAdd}>
-          <Plus className="mr-2 h-4 w-4" /> Add Product
-        </Button>
+        <div className="flex gap-2">
+          <input
+            type="file"
+            accept=".xlsx, .xls, .csv"
+            className="hidden"
+            id="excel-upload"
+            onChange={handleFileUpload}
+          />
+          <Button variant="outline" onClick={downloadSampleExcel} title="Download Sample format">
+            <Download className="mr-2 h-4 w-4" /> Sample Format
+          </Button>
+          <Button variant="outline" onClick={() => document.getElementById('excel-upload')?.click()}>
+            <Upload className="mr-2 h-4 w-4" /> Import Excel
+          </Button>
+          <Button onClick={openAdd}>
+            <Plus className="mr-2 h-4 w-4" /> Add Product
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -280,32 +371,32 @@ export default function ProductsPage() {
             </div>
             <div>
               <Label>GST Rate (%)</Label>
-              <Input type="number" value={form.gst_rate} onChange={(e) => setForm({ ...form, gst_rate: parseFloat(e.target.value) || 0 })} />
+              <Input type="number" min="0" step="any" value={form.gst_rate === 0 ? '' : form.gst_rate} onChange={(e) => setForm({ ...form, gst_rate: e.target.value === '' ? 0 : parseFloat(e.target.value) })} />
             </div>
             <div>
               <Label>Purchase Price</Label>
-              <Input type="number" value={form.purchase_price} onChange={(e) => setForm({ ...form, purchase_price: parseFloat(e.target.value) || 0 })} />
+              <Input type="number" min="0" step="any" value={form.purchase_price === 0 ? '' : form.purchase_price} onChange={(e) => setForm({ ...form, purchase_price: e.target.value === '' ? 0 : parseFloat(e.target.value) })} />
             </div>
             <div>
               <Label>Selling Price *</Label>
-              <Input type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: parseFloat(e.target.value) || 0 })} />
+              <Input type="number" min="0" step="any" value={form.selling_price === 0 ? '' : form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value === '' ? 0 : parseFloat(e.target.value) })} />
             </div>
             <div>
               <Label>Quantity</Label>
-              <Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: parseFloat(e.target.value) || 0 })} />
+              <Input type="number" min="0" step="any" value={form.quantity === 0 ? '' : form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value === '' ? 0 : parseFloat(e.target.value) })} />
             </div>
             <div>
               <Label>Unit</Label>
               <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {units.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                  {units.map((u) => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label>Low Stock Alert</Label>
-              <Input type="number" value={form.low_stock_alert} onChange={(e) => setForm({ ...form, low_stock_alert: parseFloat(e.target.value) || 0 })} />
+              <Input type="number" min="0" step="any" value={form.low_stock_alert === 0 ? '' : form.low_stock_alert} onChange={(e) => setForm({ ...form, low_stock_alert: e.target.value === '' ? 0 : parseFloat(e.target.value) })} />
             </div>
             <div className="col-span-2">
               <Label>Description</Label>

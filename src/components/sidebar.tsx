@@ -1,6 +1,6 @@
 /**
- * Sidebar navigation component for Gajraj Kirana Stores
- * MyBillBook-style left sidebar with navigation links and store branding.
+ * Sidebar navigation component
+ * Navigation links and dynamic store branding.
  */
 
 'use client';
@@ -19,32 +19,47 @@ import {
   AlertTriangle,
   Store,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-/* Navigation items matching MyBillBook layout */
+/* Navigation items */
 const navItems = [
-  { href: '/',          label: 'Dashboard',   icon: LayoutDashboard },
-  { href: '/billing',   label: 'New Bill',    icon: ShoppingCart },
-  { href: '/invoices',  label: 'Invoices',    icon: FileText },
-  { href: '/products',  label: 'Products',    icon: Package },
-  { href: '/customers', label: 'Customers',   icon: Users },
-  { href: '/reports',   label: 'Reports',     icon: BarChart3 },
-  { href: '/low-stock', label: 'Low Stock',   icon: AlertTriangle },
-  { href: '/settings',  label: 'Settings',    icon: Settings },
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/billing', label: 'New Bill', icon: ShoppingCart },
+  { href: '/invoices', label: 'Invoices', icon: FileText },
+  { href: '/products', label: 'Products', icon: Package },
+  { href: '/customers', label: 'Customers', icon: Users },
+  { href: '/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/low-stock', label: 'Low Stock', icon: AlertTriangle },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [storeName, setStoreName] = useState('Billing Software');
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then((data) => {
+        if (data.store_name) {
+          setStoreName(data.store_name);
+        }
+      })
+      .catch((err) => console.error('Failed to load store name for sidebar', err));
+  }, []);
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-card flex flex-col">
       {/* Store branding header */}
       <div className="flex items-center gap-3 px-6 py-5 border-b">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Store className="h-5 w-5" />
         </div>
-        <div>
-          <h1 className="text-sm font-bold leading-tight">Gajraj Kirana</h1>
-          <p className="text-xs text-muted-foreground">Billing Software</p>
+        <div className="overflow-hidden">
+          <h1 className="text-sm font-bold leading-tight truncate" title={storeName}>
+            {storeName}
+          </h1>
+          <p className="text-xs text-muted-foreground truncate">Billing Software</p>
         </div>
       </div>
 

@@ -24,6 +24,13 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now'))
   );
 
+  -- Dynamic Units
+  CREATE TABLE IF NOT EXISTS units (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
   -- Products / Inventory
   CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,7 +119,7 @@ const seedSettings = db.prepare(
   `INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`
 );
 const defaultSettings: [string, string][] = [
-  ['store_name', 'Gajraj Kirana Stores'],
+  ['store_name', 'Store Name'],
   ['store_address', ''],
   ['store_phone', ''],
   ['store_email', ''],
@@ -120,8 +127,9 @@ const defaultSettings: [string, string][] = [
   ['gmail_user', ''],
   ['gmail_app_password', ''],
   ['low_stock_email', ''],
-  ['invoice_prefix', 'GKS'],
+  ['invoice_prefix', 'INV'],
   ['invoice_counter', '1'],
+  ['invoice_theme', 'professional'],
 ];
 const seedTx = db.transaction(() => {
   for (const [k, v] of defaultSettings) seedSettings.run(k, v);
@@ -140,5 +148,15 @@ const seedCatTx = db.transaction(() => {
   for (const c of defaultCategories) seedCat.run(c);
 });
 seedCatTx();
+
+/* ---------- Seed default units ---------- */
+const seedUnit = db.prepare(
+  `INSERT OR IGNORE INTO units (name) VALUES (?)`
+);
+const defaultUnits = ['pcs', 'kg', 'g', 'ltr', 'ml', 'box', 'pack', 'dozen', 'bag', 'feet', 'meter', 'sqft'];
+const seedUnitTx = db.transaction(() => {
+  for (const u of defaultUnits) seedUnit.run(u);
+});
+seedUnitTx();
 
 export default db;
