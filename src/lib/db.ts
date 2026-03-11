@@ -8,7 +8,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 
 /* ---------- Connection ---------- */
-const DB_PATH = path.join(process.cwd(), 'gajraj_store.db');
+const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'gajraj_store.db');
 const db = new Database(DB_PATH);
 
 // Enable WAL mode for better concurrent read performance
@@ -103,6 +103,13 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT DEFAULT ''
   );
+
+  -- Performance Indexes
+  CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON invoices(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_invoices_customer_name ON invoices(customer_name);
+  CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id);
+  CREATE INDEX IF NOT EXISTS idx_products_quantity ON products(quantity);
+  CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
 `);
 
 /* ---------- Migrations ---------- */

@@ -40,6 +40,7 @@ interface InvoiceItem {
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -54,21 +55,31 @@ export default function InvoicesPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const fetchInvoices = useCallback(async () => {
     try {
+      setLoading(true);
       const params = new URLSearchParams();
-      if (search) params.set('search', search);
+      if (debouncedSearch) params.set('search', debouncedSearch);
       if (statusFilter) params.set('status', statusFilter);
       const res = await fetch(`/api/invoices?${params}`);
       setInvoices(await res.json());
     } catch { toast.error('Failed to load invoices'); }
     finally { setLoading(false); }
-  }, [search, statusFilter]);
+  }, [debouncedSearch, statusFilter]);
 
   useEffect(() => {
     fetchInvoices();
-    fetch('/api/settings').then(r => r.json()).then(setSettings);
   }, [fetchInvoices]);
+
+  useEffect(() => {
+     fetch('/api/settings').then(r => r.json()).then(setSettings);
+  }, []);
 
   const viewInvoice = async (inv: Invoice) => {
     const res = await fetch(`/api/invoices/${inv.id}`);
